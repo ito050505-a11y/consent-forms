@@ -524,7 +524,7 @@ root.render(<App />);
 </script>
 <script>
   var src = document.getElementById("app-source").textContent;
-  var transformed = Babel.transform(src, { presets: ["react"] }).code;
+  var transformed = Babel.transform(src, { presets: [["react", { runtime: "classic" }]] }).code;
   var script = document.createElement("script");
   script.textContent = transformed;
   document.body.appendChild(script);
