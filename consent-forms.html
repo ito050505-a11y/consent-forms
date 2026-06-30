@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ネイル施術同意書 | 燈乃工房</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+
+const SUPABASE_URL = "https://mhyywkdempvawtlzgwjh.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oeXl3a2RlbXB2YXd0bHpnd2poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDIxMjQsImV4cCI6MjA5ODM3ODEyNH0.JCppafCDBejplrFtWs7WpTy7kd7qLy3Jyb8AkXB_kKY";
+
+const STAFF_PASSWORD = "akarinokoubou";
+
+const QUESTIONS = [
+  { id: "nail_disease", type: "yesno", label: "爪に関する病気、感染症はございませんか？", yes: "ありません", no: "あります" },
+  { id: "skin_disease", type: "yesno", label: "その他、皮膚の病気、感染症はございませんか？", yes: "ありません", no: "あります" },
+  { id: "allergy", type: "yesno", label: "薬品等のアレルギーはございませんか？", yes: "ありません", no: "あります" },
+  { id: "pregnancy", type: "yesno", label: "現在、妊娠中・授乳中の方はいらっしゃいますか？", yes: "いいえ", no: "はい" },
+  { id: "no_self_removal", type: "agree", label: "ご自身でジェルネイルを無理矢理除去されますと自爪を痛める原因となりますので、そのような行為はお止めください。" },
+  { id: "visit_if_damaged", type: "agree", label: "ジェルネイル又はスカルプチュアが浮いてきたり亀裂が入ったまま放置すると、自爪が折れたり、自爪との間に水が溜まりグリーンネイルになってしまう恐れがありますので、お直しにご来店ください。" },
+  { id: "uv_allergy", type: "agree", label: "ジェルネイルに使用するUV、LEDライトは、紫外線で硬化させる為、紫外線アレルギーの方は照射にてアレルギー状態を引き起こす可能性がございます。ご心配の方は事前に医師への確認をお願い致します。" },
+  { id: "cancel_policy", type: "agree", label: "【キャンセル・遅刻について】ご予約のキャンセルは基本的に前日までにご連絡ください。当日の遅刻につきましては、ご連絡をいただいた場合15分まではお待ちいたします。ご連絡がない場合、ご予約時間より10分を過ぎますと無断キャンセル扱いとさせていただきます。" },
+  { id: "reservation_refusal", type: "agree", label: "【ご予約の拒否要件】無断キャンセル・規約違反・施術者への恫喝・公序良俗に反する行為・感染症未完治・店内での犯罪行為等が見受けられた場合、今後のご予約をお断りさせていただくことがございます。" },
+  { id: "parking", type: "agree", label: "【駐車場について】当店利用に伴う駐車場内でのトラブル・事故・盗難等につきましては、当店は責任を負いかねますのであらかじめご了承ください。" },
+  { id: "store_rules", type: "agree", label: "【入店・禁止行為について】飲酒されている方、ペット同伴（補助犬は除く）、乳幼児・未就学児を連れての入店はご遠慮いただいております。" },
+  { id: "privacy", type: "agree", label: "【個人情報の取り扱いについて】お預かりした個人情報は、お客様の同意なく第三者へ提供・開示いたしません。ネイルサービス、顧客管理、DM、SNS・HPへの写真掲載以外の目的には使用いたしません。なお、お手元写真のSNS・HPへの掲載を希望されない場合は、施術時にスタッフへお申し出ください。" },
+  { id: "warranty", type: "agree", label: "【補償（無料お直しについて）】ジェルネイルの浮きや剥がれが生じた場合、施術日を含め10日以内にご連絡いただければ無料でお直しいたします（お客様自身の原因によるものは対象外）。レジャー等で剥がれやすい環境が予想される場合は、施術前にお知らせください。" },
+  { id: "final_consent", type: "agree", label: "これまでご案内した内容すべてについてご理解・ご了承いただいた上で、お名前等のご入力（サイン）をお願いいたします。" },
+];
+
+async function supabaseInsert(record) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/consent_forms`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(record),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text);
+  }
+  return res.json();
+}
+
+async function supabaseFetchAll() {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/consent_forms?select=*&order=created_at.desc`,
+    {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text);
+  }
+  return res.json();
+}
+
+function App() {
+  const [mode, setMode] = useState("customer"); // customer | staff
+  const [tapCount, setTapCount] = useState(0);
+  const tapTimer = useRef(null);
+
+  function handleTitleTap() {
+    const next = tapCount + 1;
+    setTapCount(next);
+    clearTimeout(tapTimer.current);
+    tapTimer.current = setTimeout(() => setTapCount(0), 1500);
+    if (next >= 5) {
+      setMode("staff");
+      setTapCount(0);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#FAF7F2",
+        fontFamily: "'Hiragino Sans', 'Noto Sans JP', -apple-system, sans-serif",
+      }}
+    >
+      {mode === "customer" ? (
+        <CustomerForm onTitleTap={handleTitleTap} />
+      ) : (
+        <StaffView onExit={() => setMode("customer")} />
+      )}
+    </div>
+  );
+}
+
+function CustomerForm({ onTitleTap }) {
+  const [step, setStep] = useState("start");
+  const [answers, setAnswers] = useState({});
+  const [customer, setCustomer] = useState({ name: "", address: "", phone: "" });
+  const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const qIndex = typeof step === "number" ? step : 0;
+  const currentQ = QUESTIONS[qIndex];
+
+  function start() {
+    setStep(0);
+  }
+
+  function answer(value) {
+    setAnswers((prev) => ({ ...prev, [currentQ.id]: value }));
+    if (qIndex + 1 < QUESTIONS.length) {
+      setStep(qIndex + 1);
+    } else {
+      setStep("info");
+    }
+  }
+
+  function goBack() {
+    if (typeof step === "number" && step > 0) setStep(step - 1);
+    else if (step === "info") setStep(QUESTIONS.length - 1);
+  }
+
+  async function submit() {
+    if (!customer.name || !customer.address || !customer.phone) return;
+    setSaving(true);
+    setError("");
+    try {
+      const record = {
+        customer_name: customer.name,
+        customer_address: customer.address,
+        customer_phone: customer.phone,
+      };
+      QUESTIONS.forEach((q) => {
+        record[q.id] = answers[q.id] || null;
+      });
+      await supabaseInsert(record);
+      setSubmitted(true);
+    } catch (e) {
+      setError("送信に失敗しました。電波状況をご確認のうえ、もう一度お試しください。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function reset() {
+    setStep("start");
+    setAnswers({});
+    setCustomer({ name: "", address: "", phone: "" });
+    setSubmitted(false);
+    setError("");
+  }
+
+  const progress =
+    typeof step === "number"
+      ? ((step + 1) / (QUESTIONS.length + 1)) * 100
+      : step === "info"
+      ? 100
+      : 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 16px 48px" }}>
+      <div style={{ width: "100%", maxWidth: 640 }}>
+        <div
+          onClick={onTitleTap}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 24, userSelect: "none" }}
+        >
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#B8A99A" }} />
+          <h1 style={{ fontSize: 22, fontWeight: 600, color: "#3B332C", letterSpacing: "0.04em", margin: 0 }}>
+            ネイル施術同意書
+          </h1>
+        </div>
+
+        {step !== "start" && (
+          <div style={{ width: "100%", height: 4, background: "#EDE6DC", borderRadius: 4, marginBottom: 28, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${progress}%`, background: "#C9A88A", transition: "width 0.3s ease" }} />
+          </div>
+        )}
+
+        <div style={{ background: "#FFFFFF", borderRadius: 20, padding: "36px 28px", boxShadow: "0 4px 24px rgba(59,51,44,0.06)" }}>
+          {step === "start" && (
+            <div style={{ textAlign: "center" }}>
+              <p style={{ fontSize: 15, color: "#6B6056", lineHeight: 1.9, marginBottom: 32 }}>
+                施術を安心して受けていただくため、
+                <br />
+                以下の内容をご確認のうえ、ご回答をお願いいたします。
+                <br />
+                ご不明な点は事前にスタッフへお申し付けください。
+              </p>
+              <button onClick={start} style={{ padding: "18px 48px", borderRadius: 14, border: "none", background: "#C9A88A", color: "#fff", fontSize: 16, fontWeight: 600, cursor: "pointer" }}>
+                同意書の記入を開始する
+              </button>
+            </div>
+          )}
+
+          {typeof step === "number" && (
+            <div>
+              <div style={{ fontSize: 12, color: "#B8A99A", marginBottom: 10, fontWeight: 600 }}>
+                {qIndex + 1} / {QUESTIONS.length}
+              </div>
+              <p style={{ fontSize: 16, lineHeight: 1.8, color: "#3B332C", marginBottom: 28, whiteSpace: "pre-wrap" }}>
+                {currentQ.label}
+              </p>
+
+              {currentQ.type === "yesno" ? (
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button onClick={() => answer("yes")} style={btnStyle(answers[currentQ.id] === "yes")}>
+                    {currentQ.yes}
+                  </button>
+                  <button onClick={() => answer("no")} style={btnStyle(answers[currentQ.id] === "no", true)}>
+                    {currentQ.no}
+                  </button>
+                </div>
+              ) : (
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "16px 18px",
+                    border: "1px solid #E5DCD0",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    background: answers[currentQ.id] === "agreed" ? "#F4ECE0" : "#FCFAF7",
+                  }}
+                  onClick={() => answer("agreed")}
+                >
+                  <span
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 6,
+                      border: "2px solid #C9A88A",
+                      background: answers[currentQ.id] === "agreed" ? "#C9A88A" : "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#fff",
+                      fontSize: 14,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {answers[currentQ.id] === "agreed" ? "✓" : ""}
+                  </span>
+                  <span style={{ fontSize: 15, color: "#3B332C" }}>同意します</span>
+                </label>
+              )}
+
+              {qIndex > 0 && (
+                <button onClick={goBack} style={{ marginTop: 24, fontSize: 13, color: "#A89B8C", background: "none", border: "none", cursor: "pointer" }}>
+                  ← 前の項目へ
+                </button>
+              )}
+            </div>
+          )}
+
+          {step === "info" && !submitted && (
+            <div>
+              <p style={{ fontSize: 15, color: "#6B6056", marginBottom: 24, textAlign: "center" }}>
+                最後に、お客様情報をご入力ください
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <input placeholder="お名前（フルネーム）" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} style={inputStyle} />
+                <input placeholder="住所" value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} style={inputStyle} />
+                <input placeholder="電話番号" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} style={inputStyle} />
+              </div>
+              {error && <p style={{ color: "#C97A6A", fontSize: 13, marginTop: 12 }}>{error}</p>}
+              <button
+                onClick={submit}
+                disabled={!customer.name || !customer.address || !customer.phone || saving}
+                style={{
+                  marginTop: 28,
+                  width: "100%",
+                  padding: "16px 0",
+                  borderRadius: 12,
+                  border: "none",
+                  background: customer.name && customer.address && customer.phone ? "#C9A88A" : "#E5DCD0",
+                  color: "#fff",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {saving ? "送信中…" : "同意して送信する"}
+              </button>
+              <button onClick={goBack} style={{ marginTop: 16, fontSize: 13, color: "#A89B8C", background: "none", border: "none", cursor: "pointer", display: "block", marginInline: "auto" }}>
+                ← 前の項目へ
+              </button>
+            </div>
+          )}
+
+          {submitted && (
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              <div style={{ fontSize: 40, marginBottom: 16 }}>✓</div>
+              <p style={{ fontSize: 16, color: "#3B332C", marginBottom: 8 }}>ご回答ありがとうございました</p>
+              <p style={{ fontSize: 13, color: "#9B8E80", marginBottom: 28 }}>同意書の内容を受け付けました</p>
+              <button onClick={reset} style={{ padding: "12px 28px", borderRadius: 10, border: "1px solid #E5DCD0", background: "#FCFAF7", fontSize: 14, color: "#6B6056", cursor: "pointer" }}>
+                次のお客様へ
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function btnStyle(active, danger) {
+  return {
+    flex: 1,
+    padding: "16px 0",
+    borderRadius: 12,
+    border: active ? `2px solid ${danger ? "#C97A6A" : "#C9A88A"}` : "1px solid #E5DCD0",
+    background: active ? (danger ? "#F6E6E2" : "#F4ECE0") : "#FCFAF7",
+    fontSize: 15,
+    fontWeight: 600,
+    color: "#3B332C",
+    cursor: "pointer",
+  };
+}
+
+const inputStyle = {
+  padding: "14px 16px",
+  borderRadius: 10,
+  border: "1px solid #E5DCD0",
+  fontSize: 15,
+  outline: "none",
+  background: "#FCFAF7",
+};
+
+function toJstDateString(isoString) {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  // UTC -> JST (+9時間) に変換してから日付部分だけ取得
+  const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  return jst.toISOString().slice(0, 10);
+}
+
+function StaffView({ onExit }) {
+  const [authed, setAuthed] = useState(false);
+  const [pw, setPw] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+
+  useEffect(() => {
+    if (authed) loadRecords();
+  }, [authed]);
+
+  async function loadRecords() {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await supabaseFetchAll();
+      setRecords(data);
+    } catch (e) {
+      setError("読み込みに失敗しました。");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function checkPw() {
+    if (pw === STAFF_PASSWORD) {
+      setAuthed(true);
+      setPwError("");
+    } else {
+      setPwError("パスワードが違います");
+    }
+  }
+
+  if (!authed) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", padding: "60px 16px" }}>
+        <div style={{ background: "#fff", borderRadius: 20, padding: "36px 28px", width: "100%", maxWidth: 360, boxShadow: "0 4px 24px rgba(59,51,44,0.06)" }}>
+          <p style={{ fontSize: 14, color: "#6B6056", marginBottom: 16, textAlign: "center" }}>
+            スタッフ用パスワードを入力してください
+          </p>
+          <input
+            type="password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && checkPw()}
+            style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+            placeholder="パスワード"
+          />
+          {pwError && <p style={{ color: "#C97A6A", fontSize: 13, marginTop: 8 }}>{pwError}</p>}
+          <button onClick={checkPw} style={{ marginTop: 16, width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: "#C9A88A", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+            確認する
+          </button>
+          <button onClick={onExit} style={{ marginTop: 12, width: "100%", padding: "8px 0", borderRadius: 10, border: "none", background: "none", color: "#A89B8C", fontSize: 12, cursor: "pointer" }}>
+            お客様画面に戻る
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const filtered = records.filter((r) => {
+    const matchesSearch =
+      !search ||
+      r.customer_name?.includes(search) ||
+      r.customer_phone?.includes(search);
+    const matchesDate =
+      !dateFilter || toJstDateString(r.created_at) === dateFilter;
+    return matchesSearch && matchesDate;
+  });
+
+  if (selected) {
+    return (
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 16px 48px" }}>
+        <button onClick={() => setSelected(null)} style={{ fontSize: 13, color: "#A89B8C", background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+          ← 一覧へ戻る
+        </button>
+        <div style={{ background: "#fff", borderRadius: 20, padding: "28px", boxShadow: "0 4px 24px rgba(59,51,44,0.06)" }}>
+          <h2 style={{ fontSize: 18, color: "#3B332C", marginBottom: 4 }}>{selected.customer_name} 様</h2>
+          <p style={{ fontSize: 12, color: "#9B8E80", marginBottom: 20 }}>
+            {new Date(selected.created_at).toLocaleString("ja-JP")}
+          </p>
+          <div style={{ fontSize: 13, color: "#6B6056", marginBottom: 16, lineHeight: 1.8 }}>
+            <div>住所：{selected.customer_address}</div>
+            <div>電話番号：{selected.customer_phone}</div>
+          </div>
+          <div style={{ borderTop: "1px solid #EDE6DC", paddingTop: 16 }}>
+            {QUESTIONS.map((q) => (
+              <div key={q.id} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 13, color: "#3B332C", marginBottom: 4 }}>{q.label}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#C9A88A" }}>
+                  {q.type === "yesno"
+                    ? selected[q.id] === "yes"
+                      ? q.yes
+                      : selected[q.id] === "no"
+                      ? q.no
+                      : "未回答"
+                    : selected[q.id] === "agreed"
+                    ? "同意済み"
+                    : "未回答"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 16px 48px" }}>
+      <button onClick={onExit} style={{ fontSize: 12, color: "#A89B8C", background: "none", border: "none", cursor: "pointer", marginBottom: 12 }}>
+        ← お客様画面に戻る
+      </button>
+      <input
+        placeholder="お名前 または 電話番号で検索"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 10 }}
+      />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        <input
+          type="date"
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value)}
+          style={{ ...inputStyle, flex: 1, boxSizing: "border-box" }}
+        />
+        {dateFilter && (
+          <button
+            onClick={() => setDateFilter("")}
+            style={{ fontSize: 12, color: "#A89B8C", background: "none", border: "none", cursor: "pointer" }}
+          >
+            解除
+          </button>
+        )}
+      </div>
+      {loading && <p style={{ color: "#9B8E80", fontSize: 13 }}>読み込み中…</p>}
+      {error && <p style={{ color: "#C97A6A", fontSize: 13 }}>{error}</p>}
+      {!loading && filtered.length === 0 && (
+        <p style={{ color: "#9B8E80", fontSize: 13, textAlign: "center", marginTop: 40 }}>同意書はまだありません</p>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {filtered.map((r) => (
+          <div
+            key={r.id}
+            onClick={() => setSelected(r)}
+            style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", boxShadow: "0 2px 12px rgba(59,51,44,0.05)", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+          >
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#3B332C" }}>{r.customer_name} 様</div>
+              <div style={{ fontSize: 12, color: "#9B8E80", marginTop: 2 }}>{r.customer_phone}</div>
+            </div>
+            <div style={{ fontSize: 11, color: "#B8A99A" }}>
+              {new Date(r.created_at).toLocaleDateString("ja-JP")}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
