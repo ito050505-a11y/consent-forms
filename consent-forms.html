@@ -14,7 +14,7 @@
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" data-presets="react">
+<script type="text/babel-source" id="app-source">
 const { useState, useEffect, useRef } = React;
 
 
@@ -521,6 +521,13 @@ function StaffView({ onExit }) {
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App />);
+</script>
+<script>
+  var src = document.getElementById("app-source").textContent;
+  var transformed = Babel.transform(src, { presets: ["react"] }).code;
+  var script = document.createElement("script");
+  script.textContent = transformed;
+  document.body.appendChild(script);
 </script>
 </body>
 </html>
