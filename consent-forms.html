@@ -76,6 +76,20 @@ async function supabaseFetchAll() {
   return res.json();
 }
 
+async function supabaseDelete(id) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/consent_records?id=eq.${id}`, {
+    method: "DELETE",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text);
+  }
+}
+
 function App() {
   const [mode, setMode] = useState("customer"); // customer | staff
   const [tapCount, setTapCount] = useState(0);
@@ -363,6 +377,8 @@ function StaffView({ onExit }) {
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (authed) loadRecords();
@@ -387,6 +403,20 @@ function StaffView({ onExit }) {
       setPwError("");
     } else {
       setPwError("パスワードが違います");
+    }
+  }
+
+  async function handleDelete(id) {
+    setDeleting(true);
+    try {
+      await supabaseDelete(id);
+      setRecords((prev) => prev.filter((r) => r.id !== id));
+      setSelected(null);
+      setConfirmDelete(false);
+    } catch (e) {
+      setError("削除に失敗しました。");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -430,7 +460,7 @@ function StaffView({ onExit }) {
   if (selected) {
     return (
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 16px 48px" }}>
-        <button onClick={() => setSelected(null)} style={{ fontSize: 13, color: "#A89B8C", background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
+        <button onClick={() => { setSelected(null); setConfirmDelete(false); }} style={{ fontSize: 13, color: "#A89B8C", background: "none", border: "none", cursor: "pointer", marginBottom: 16 }}>
           ← 一覧へ戻る
         </button>
         <div style={{ background: "#fff", borderRadius: 20, padding: "28px", boxShadow: "0 4px 24px rgba(59,51,44,0.06)" }}>
@@ -459,6 +489,37 @@ function StaffView({ onExit }) {
                 </div>
               </div>
             ))}
+          </div>
+          <div style={{ borderTop: "1px solid #EDE6DC", marginTop: 20, paddingTop: 20 }}>
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "1px solid #E8C9C0", background: "#FDF4F2", color: "#C97A6A", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              >
+                🗑️ この同意書を削除する
+              </button>
+            ) : (
+              <div>
+                <p style={{ fontSize: 13, color: "#C97A6A", textAlign: "center", marginBottom: 12 }}>
+                  本当に削除しますか？元に戻せません。
+                </p>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "1px solid #E5DCD0", background: "#FCFAF7", color: "#6B6056", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={() => handleDelete(selected.id)}
+                    disabled={deleting}
+                    style={{ flex: 1, padding: "12px 0", borderRadius: 10, border: "none", background: "#C97A6A", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    {deleting ? "削除中…" : "削除する"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
