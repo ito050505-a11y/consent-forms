@@ -18,9 +18,9 @@
 const { useState, useEffect, useRef } = React;
 
 
-const SUPABASE_URL = "https://mhyywkdempvawtlzgwjh.supabase.co";
+const SUPABASE_URL = "https://mdqzseflgmesziiwhdif.supabase.co";
 const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oeXl3a2RlbXB2YXd0bHpnd2poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDIxMjQsImV4cCI6MjA5ODM3ODEyNH0.JCppafCDBejplrFtWs7WpTy7kd7qLy3Jyb8AkXB_kKY";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcXpzZWZsZ21lc3ppaXdoZGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NjYzMzgsImV4cCI6MjA5NjA0MjMzOH0.f8xnZ-dxxbg-PY6Ev-5sOi_EyoV3FHfaybSWyR3rZ-4";
 
 const STAFF_PASSWORD = "akarinokoubou";
 
@@ -42,7 +42,7 @@ const QUESTIONS = [
 ];
 
 async function supabaseInsert(record) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/consent_forms`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/consent_records`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -61,7 +61,7 @@ async function supabaseInsert(record) {
 
 async function supabaseFetchAll() {
   const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/consent_forms?select=*&order=created_at.desc`,
+    `${SUPABASE_URL}/rest/v1/consent_records?select=*&order=created_at.desc`,
     {
       headers: {
         apikey: SUPABASE_ANON_KEY,
